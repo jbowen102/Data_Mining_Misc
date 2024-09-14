@@ -28,10 +28,10 @@ class Eclat(object):
         self.transaction_db_vert = dict()
         for transaction_id in self.transaction_db_horiz:
             for item in self.transaction_db_horiz[transaction_id]:
-                if frozenset(item) in self.transaction_db_vert:
-                    self.transaction_db_vert[frozenset(item)].add(transaction_id)
+                if frozenset({item}) in self.transaction_db_vert:
+                    self.transaction_db_vert[frozenset({item})].add(transaction_id)
                 else:
-                    self.transaction_db_vert[frozenset(item)] = set((transaction_id))
+                    self.transaction_db_vert[frozenset({item})] = set({transaction_id})
 
 
     def _prune_infrequent(self):
@@ -55,6 +55,10 @@ class Eclat(object):
         self._transform_db()
         self._prune_infrequent()
 
+        print(Fore.CYAN + Style.BRIGHT, end="")
+        print("Found %d frequent 1-itemsets" % len(self.transaction_db_vert))
+        print(Style.RESET_ALL, end="")
+
         # for transaction in self.transaction_db_vert:
         #     print("%s: " % transaction, end="") # DEBUG
         #     print(sorted(self.transaction_db_vert[transaction])) # DEBUG
@@ -65,7 +69,8 @@ class Eclat(object):
             L_km1 = L_k
             L_k = dict()
             seen = set() # Maintain list of already-seen itemset candidates to eliminate duplicate effort.
-            for itemset1 in L_km1:
+            print()
+            for itemset1 in tqdm(L_km1, desc="Finding %s-itemsets" % k, colour="#4ab19d"):
                 for itemset2 in L_km1:
                     k_itemset_cand = itemset1.union(itemset2)
                     if k_itemset_cand in seen:
@@ -92,18 +97,8 @@ class Eclat(object):
                     else:
                         continue
 
-                    # If any k-1 subpattern of the candidate k-subset is not present in
-                    # L_k-1, the k-itemset can't be frequent. Prune
-                    for km1_combo_subset in set(itertools.combinations(k_itemset_cand, k-1)):
-                        if frozenset(km1_combo_subset) not in L_km1:
-                            # print("Subset ", end="") # DEBUG
-                            # print(km1_combo_subset, end="") # DEBUG
-                            # print("didn't pass min_sup") # DEBUG
-                            L_k.pop(k_itemset_cand)
-                            break
-                            # don't continue looking for k-1-subsets in L_k-1 if one
-                            # already was missing. And don't try to remove candidate k-itemset from L_k again.
-
+            print(Fore.CYAN + Style.BRIGHT, end="")
+            print("Found %d frequent %d-itemsets" % (len(L_k), k) + Style.RESET_ALL)
             L = {**L, **L_k} # https://stackoverflow.com/questions/38987/how-do-i-merge-two-dictionaries-in-a-single-expression-in-python
             k += 1
 
@@ -111,3 +106,5 @@ class Eclat(object):
         for item in L:
             print("%s:\t\t\t" % item + Fore.YELLOW + Style.BRIGHT + "%d" % len(L[item]) + Style.RESET_ALL)
         print(Style.RESET_ALL)
+
+        return L
