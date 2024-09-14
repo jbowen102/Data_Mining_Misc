@@ -37,16 +37,31 @@ class Eclat(object):
     def _prune_infrequent(self):
         """Imposes min_support on all 1-itemsets found in transformed db.
         """
-        self._transform_db()
-
+        assert self.transaction_db_vert is not None, \
+                "Attempted to prune infrequent items before vertical db created."
+        # Make temp list so not looping over dict itself, when its size may change
         single_items = list(self.transaction_db_vert.keys())
         for item in single_items:
             if len(self.transaction_db_vert[item]) < self.min_sup_count:
                 # Remove any 1-itemset from vertical db if its support is too low
-                _ = self.transaction_db_vert.pop(item)
+                self.transaction_db_vert.pop(item)
 
 
-    def find_L_all(self, min_sup_abs):
+    def _prune_universal(self):
+        """Removes single itemsets that have "universal" support - items found
+        in every transaction of database so they're excluded from pattern
+        discovery (if it is known that those rules will be uninteresting).
+        """
+        assert self.transaction_db_vert is not None, \
+                "Attempted to prune universal items before vertical db created."
+        # Make temp list so not looping over dict itself, when its size may change
+        single_items = list(self.transaction_db_vert.keys())
+        for item in single_items:
+            if len(self.transaction_db_vert[item]) >= len(self.transaction_db_horiz):
+                self.transaction_db_vert.pop(item)
+
+
+    def find_L_all(self, min_sup_abs, include_univ=True):
         """
         Mine transformed "vertical" data structure using Eclat algorithm.
         Find set of all frequent itemsets (of any length) in the database.
@@ -54,6 +69,9 @@ class Eclat(object):
         self.min_sup_count = min_sup_abs
         self._transform_db()
         self._prune_infrequent()
+
+        if not include_univ:
+            self._prune_universal()
 
         print(Fore.CYAN + Style.BRIGHT, end="")
         print("Found %d frequent 1-itemsets" % len(self.transaction_db_vert))
